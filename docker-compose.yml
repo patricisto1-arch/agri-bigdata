@@ -39,7 +39,7 @@ services:
       - "9000:9000"
 
   spark:
-    image: bitnami/spark:latest
+    image: bitnami/spark:3.5
     ports:
       - "8080:8080"
 
