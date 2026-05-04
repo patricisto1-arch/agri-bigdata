@@ -41,6 +41,7 @@ services:
 
   spark:
     image: apache/spark:3.5.0
+    container_name: spark-master
     command: >
       /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     ports:
