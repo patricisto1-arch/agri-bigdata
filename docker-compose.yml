@@ -39,9 +39,9 @@ services:
       - "9000:9000"
 
   spark:
-    image: apache/spark:3.5.0
+    image: jupyter/pyspark-notebook:spark-3.4.0
     ports:
-      - "8080:8080"
+      - "8080:8888"
 
   jupyter:
     image: jupyter/base-notebook
