@@ -52,5 +52,4 @@ services:
     ports:
       - "8888:8888"
       environment:
-        JUPYTER_USER: admin
-        JUPYTER_USER: password
+        JUPYTER_TOKEN: password
