@@ -10,7 +10,7 @@ import json
 
 # PARTIE 1 : Connexion à PostgreSQL
 conn = psycopg2.connect(
-    host="localhost",
+    conn = psycopg2.connect(host="postgres", port=5432, database="agri", user="admin", password="admin"),
     port=5432,
     database="agridb",
     user="postgres",

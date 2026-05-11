@@ -11,7 +11,7 @@ import io
 
 # PARTIE 1 : Connexion à MinIO 
 client = Minio(
-    "localhost:9000",
+    client = Minio("minio:9000", access_key="admin", secret_key="password", secure=False),
     access_key="minioadmin",
     secret_key="minioadmin",
     secure=False
