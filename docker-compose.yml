@@ -17,6 +17,10 @@ services:
       - --node-id
       - "0"
       - --check=false
+      - --kafka-addr
+      - 0.0.0.0:9092
+      - --advertise-kafka-addr
+      - redpanda:9092
     ports:
       - "9092:9092"
 
@@ -62,34 +66,72 @@ services:
       - redpanda
     entrypoint: >
       /bin/sh -c "
-        sleep 30 &&
-        rpk topic create capteurs_agri --brokers redpanda:9092 &&
-        rpk topic create meteo_externe --brokers redpanda:9092 &&
-        rpk topic create alertes_agri --brokers redpanda:9092 &&
-        echo 'Topics créés.'
+        until rpk cluster info --brokers redpanda:9092 > /dev/null 2>&1; do
+          echo 'Attente Redpanda...' && sleep 5;
+        done &&
+        rpk topic create capteurs_agri --brokers redpanda:9092 || true &&
+        rpk topic create meteo_externe --brokers redpanda:9092 || true &&
+        rpk topic create alertes_agri --brokers redpanda:9092 || true &&
+        echo 'Topics créés ✅'
       "
 
   producer:
-    build: .
+    image: python:3.10-slim
     depends_on:
       - redpanda-init
-    command: python producers/capteurs_iot_producer.py
-
-  transformation:
-    build: .
-    depends_on:
-      - producer
-    command: python spark/transformation.py
-
-  storage:
-    build: .
-    depends_on:
-      - transformation
-      - postgres
-      - minio
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      KAFKA_BROKER: redpanda:9092
     command: >
       /bin/sh -c "
-      sleep 15 &&
-      python storage/minio_upload.py &&
-      python storage/postgres_insert.py
+        pip install kafka-python -q &&
+        python producers/capteurs_sol.py
       "
+
+  transformation:
+    image: apache/spark:3.5.0
+    depends_on:
+      - producer
+    user: root
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      KAFKA_BROKER: redpanda:9092
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        pip install kafka-python --quiet
+        /opt/spark/bin/spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0 /app/spark/transformation.py
+  storage:
+    image: python:3.10-slim
+    depends_on:
+      - redpanda-init
+      - postgres
+      - minio
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      /bin/sh -c "
+        pip install kafka-python pandas minio psycopg2-binary pyarrow -q &&
+        python storage/minio_upload.py &
+        python storage/postgres_insert.py
+      "
+  interface:
+    image: python:3.10-slim
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      /bin/sh -c "
+        pip install streamlit psycopg2-binary pandas altair -q &&
+        streamlit run 'interface/dashboard.py' --server.port 8501 --server.address 0.0.0.0
+      "
+    ports:
+      - "8501:8501"

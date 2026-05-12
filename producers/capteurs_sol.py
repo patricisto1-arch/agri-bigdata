@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timezone
 
 KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'localhost:9092')
-TOPIC = 'sol-capteurs'
+TOPIC = 'capteurs_agri'
 
 # 14 regions du Senegal avec cultures principales
 REGIONS = [

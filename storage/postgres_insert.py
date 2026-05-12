@@ -9,26 +9,24 @@ from kafka import KafkaConsumer
 import json
 
 # PARTIE 1 : Connexion à PostgreSQL
-conn = psycopg2.connect(
-    conn = psycopg2.connect(host="postgres", port=5432, database="agri", user="admin", password="admin"),
-    port=5432,
-    database="agridb",
-    user="postgres",
-    password="postgres"
-)
-cur = conn.cursor()  # le curseur exécute les commandes SQL
+conn = psycopg2.connect(host="postgres", port=5432, database="agri", user="admin", password="admin")
+cur = conn.cursor()
 
 # PARTIE 2 : Créer la table si elle n'existe pas
 # Colonnes basées sur ce que Spark (Fatou) produit dans alertes_agri :
 # capteur_id, temperature, humidite, ph, timestamp, alerte
 cur.execute("""
     CREATE TABLE IF NOT EXISTS capteurs (
-        capteur_id  VARCHAR(10),
-        temperature FLOAT,
-        humidite    FLOAT,
-        ph          FLOAT,
-        timestamp   BIGINT,
-        alerte      VARCHAR(20)
+        region_id       VARCHAR(10),
+        region          VARCHAR(50),
+        latitude        FLOAT,
+        longitude       FLOAT,
+        timestamp       VARCHAR(50),
+        culture         VARCHAR(50),
+        humidite_sol    FLOAT,
+        temperature_sol FLOAT,
+        ph_sol          FLOAT,
+        alerte          VARCHAR(20)
     )
 """)
 
@@ -37,7 +35,7 @@ cur.execute("""
 # Ces données sont déjà nettoyées et enrichies avec les alertes
 consumer = KafkaConsumer(
     "alertes_agri",
-    bootstrap_servers="localhost:9092",
+    bootstrap_servers="redpanda:9092",
     auto_offset_reset="earliest",
     value_deserializer=lambda x: json.loads(x.decode("utf-8"))
 )
@@ -45,8 +43,6 @@ consumer = KafkaConsumer(
 donnees_traitees = []
 for message in consumer:
     donnees_traitees.append(message.value)
-    if len(donnees_traitees) >= 10:  # on récupère 10 messages puis on stoppe
-        break
 
 df = pd.DataFrame(donnees_traitees)
 print(f"{len(df)} messages récupérés depuis alertes_agri")
@@ -54,13 +50,17 @@ print(f"{len(df)} messages récupérés depuis alertes_agri")
 # PARTIE 4 : Insérer chaque ligne dans PostgreSQL
 for _, row in df.iterrows():
     cur.execute("""
-        INSERT INTO capteurs VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO capteurs VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
-        row["capteur_id"],
-        row["temperature"],
-        row["humidite"],
-        row["ph"],
+        row["region_id"],
+        row["region"],
+        row["latitude"],
+        row["longitude"],
         row["timestamp"],
+        row["culture"],
+        row["humidite_sol"],
+        row["temperature_sol"],
+        row["ph_sol"],
         row["alerte"]
     ))
 

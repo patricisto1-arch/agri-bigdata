@@ -10,12 +10,7 @@ import json
 import io
 
 # PARTIE 1 : Connexion à MinIO 
-client = Minio(
-    client = Minio("minio:9000", access_key="admin", secret_key="password", secure=False),
-    access_key="minioadmin",
-    secret_key="minioadmin",
-    secure=False
-)
+client = Minio("minio:9000", access_key="admin", secret_key="password", secure=False)
 
 #PARTIE 2 : Créer le bucket s'il n'existe pas
 if not client.bucket_exists("agri-data"):
@@ -26,7 +21,7 @@ if not client.bucket_exists("agri-data"):
 # Ce sont les données brutes, non traitées par Spark
 consumer = KafkaConsumer(
     "capteurs_agri",
-    bootstrap_servers="localhost:9092",
+    bootstrap_servers="redpanda:9092",
     auto_offset_reset="earliest",
     value_deserializer=lambda x: json.loads(x.decode("utf-8"))
 )

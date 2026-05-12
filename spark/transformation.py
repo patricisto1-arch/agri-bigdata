@@ -14,11 +14,19 @@ spark = SparkSession.builder \
 spark.sparkContext.setLogLevel("ERROR")
 
 schema = StructType() \
-    .add("capteur_id", StringType()) \
-    .add("temperature", DoubleType()) \
-    .add("humidite", DoubleType()) \
-    .add("ph", DoubleType()) \
-    .add("timestamp", LongType())
+    .add("region_id", StringType()) \
+    .add("region", StringType()) \
+    .add("latitude", DoubleType()) \
+    .add("longitude", DoubleType()) \
+    .add("timestamp", StringType()) \
+    .add("type", StringType()) \
+    .add("culture", StringType()) \
+    .add("humidite_sol", DoubleType()) \
+    .add("temperature_sol", DoubleType()) \
+    .add("ph_sol", DoubleType()) \
+    .add("rendement", StringType()) \
+    .add("pluie_mm", StringType()) \
+    .add("alerte", StringType())
 
 df = spark.readStream \
     .format("kafka") \
@@ -33,16 +41,16 @@ df_parsed = df.select(
 ).select("data.*")
 
 df_clean = df_parsed.filter(
-    (col("temperature").between(0, 60)) &
-    (col("humidite").between(0, 100)) &
-    (col("ph").between(0, 14))
+    (col("temperature_sol").between(0, 60)) &
+    (col("humidite_sol").between(0, 100)) &
+    (col("ph_sol").between(0, 14))
 )
 
 df_alert = df_clean.withColumn(
     "alerte",
-    when(col("temperature") > 50, "CHALEUR")
-    .when(col("humidite") > 90, "HUMIDITE")
-    .when(col("ph") < 4, "SOL ACIDE")
+    when(col("temperature_sol") > 50, "CHALEUR")
+    .when(col("humidite_sol") < 20, "SECHERESSE")
+    .when(col("ph_sol") < 4, "SOL ACIDE")
     .otherwise("OK")
 )
 
