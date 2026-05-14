@@ -86,6 +86,9 @@ def rendement_simule(surface_ha, culture):
 def main():
     # Charger les données FAO
     print("Chargement des donnees FAO...")
+    if not os.path.exists(CSV_FILE):
+        print(f"ERREUR: Fichier CSV introuvable: {CSV_FILE}")
+        exit(1)
     donnees_fao = charger_fao(CSV_FILE)
     print(f"{len(donnees_fao)} cultures chargees\n")
 

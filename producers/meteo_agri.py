@@ -1,12 +1,14 @@
 import os
 import json
 import time
+import math      
+import random
 import requests
 from datetime import datetime, timezone
 from kafka import KafkaProducer
 
 KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'redpanda:9092')
-TOPIC = 'meteo-agricole'
+TOPIC = 'meteo_externe'
 OWM_API_KEY = os.getenv('OWM_API_KEY', '')
 
 REGIONS = [
@@ -51,10 +53,10 @@ def main():
                 weather = fetch_weather(r['lat'], r['lon'])
             
             # Simulated fallback if no API key or API fails
-            temp = weather['main']['temp'] if weather else 30.0 + (5 - (int(time.time()) % 10))
-            rain = weather.get('rain', {}).get('1h', 0) if weather else (0 if int(time.time()) % 2 == 0 else 5.5)
-
-            alerte = rain < 1.0 and temp > 35.0
+            t = int(time.time())
+            temp = weather['main']['temp'] if weather else round(32.0 + 4 * math.sin(2 * math.pi * t / 86400) + random.gauss(0, 0.5), 2)
+            rain = weather.get('rain', {}).get('1h', 0) if weather else round(max(0, random.gauss(2, 3)), 2)
+           
 
             msg = {
                 "region_id": r["id"],

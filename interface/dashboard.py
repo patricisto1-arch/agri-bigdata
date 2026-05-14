@@ -3,6 +3,7 @@ import pandas as pd
 import altair as alt
 import time
 from datetime import datetime
+from sqlalchemy import create_engine
 
 st.set_page_config(
     page_title="AgriData Sénégal",
@@ -175,11 +176,14 @@ div[data-testid="stDataFrame"] {
 """, unsafe_allow_html=True)
 
 # -----------------------------
-# SESSION STATE - Navigation
+# SESSION STATE - Navigation + refresh interval
 # -----------------------------
 
 if "page" not in st.session_state:
     st.session_state.page = "tableau_de_bord"
+
+if "refresh_interval" not in st.session_state:
+    st.session_state.refresh_interval = 10
 
 # -----------------------------
 # SIDEBAR - Navigation fonctionnelle
@@ -212,31 +216,54 @@ with st.sidebar:
     st.info("Des données précises pour des décisions qui nourrissent demain.")
 
 # -----------------------------
-# DONNÉES — connexion PostgreSQL avec retry rapide
+# DONNÉES — SQLAlchemy + DISTINCT ON (dernière mesure par région)
 # -----------------------------
-import psycopg2
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=5)  # TTL réduit à 5s pour plus de fraîcheur
 def load_data():
     try:
-        conn = psycopg2.connect(
-            host="postgres", port=5432,
-            database="agri", user="admin", password="admin"
+        engine = create_engine(
+            "postgresql+psycopg2://admin:admin@postgres:5432/agri"
         )
-        df = pd.read_sql("SELECT * FROM capteurs ORDER BY timestamp DESC", conn)
-        conn.close()
+        # DISTINCT ON : une seule ligne par région, la plus récente
+        df = pd.read_sql(
+            """
+            SELECT DISTINCT ON (region) *
+            FROM capteurs
+            ORDER BY region, timestamp DESC
+            """,
+            engine
+        )
         return df
-    except Exception as e:
+    except Exception:
+        return pd.DataFrame()
+
+@st.cache_data(ttl=30)
+def load_history(region):
+    """Historique d'une région pour les graphiques de tendance futurs."""
+    try:
+        engine = create_engine(
+            "postgresql+psycopg2://admin:admin@postgres:5432/agri"
+        )
+        return pd.read_sql(
+            "SELECT * FROM capteurs WHERE region = %s ORDER BY timestamp DESC LIMIT 200",
+            engine,
+            params=(region,)
+        )
+    except Exception:
         return pd.DataFrame()
 
 df = load_data()
 
 if df.empty:
     st.warning("⏳ En attente des données... Le pipeline démarre, patientez quelques instants.")
-    time.sleep(2)   # réduit de 5s → 2s
+    time.sleep(3)
     st.rerun()
 
-# Renommer les colonnes
+# -----------------------------
+# TRANSFORMATION — renommage + colonnes manquantes + règles métier
+# -----------------------------
+
 df = df.rename(columns={
     "region":          "champ",
     "humidite_sol":    "humidite_sol",
@@ -549,8 +576,9 @@ elif page == "parametres":
     st.code("Host: postgres | Port: 5432 | DB: agri | User: admin", language="text")
 
     st.markdown('<div class="section-card"><div class="section-title">RAFRAÎCHISSEMENT</div></div>', unsafe_allow_html=True)
-    refresh = st.slider("Intervalle de rafraîchissement (secondes)", 5, 60, 10)
-    st.info(f"Les données se rafraîchissent toutes les {refresh} secondes (TTL cache actuel : 10s).")
+    refresh = st.slider("Intervalle de rafraîchissement (secondes)", 5, 60, st.session_state.refresh_interval)
+    st.session_state.refresh_interval = refresh  # persiste le choix
+    st.info(f"Les données se rafraîchissent toutes les {refresh} secondes (TTL cache : 5s).")
 
 # -----------------------------
 # FOOTER
@@ -562,6 +590,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Auto-refresh toutes les 10 secondes
-time.sleep(10)
+# Auto-refresh — utilise l'intervalle choisi dans Paramètres
+time.sleep(st.session_state.get("refresh_interval", 10))
 st.rerun()
