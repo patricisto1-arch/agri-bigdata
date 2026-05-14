@@ -1,23 +1,22 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-import psycopg2
 import time
 from datetime import datetime
-from streamlit_option_menu import option_menu
+import psycopg2
 
 # =========================================================
-# CONFIG
+# CONFIG PAGE
 # =========================================================
 
 st.set_page_config(
     page_title="AgriData Sénégal",
-    page_icon="🌱",
+    page_icon="🌾",
     layout="wide"
 )
 
 # =========================================================
-# CSS
+# STYLE CSS
 # =========================================================
 
 st.markdown("""
@@ -30,22 +29,24 @@ html, body, [class*="css"] {
 }
 
 .stApp {
-    background:
-    radial-gradient(circle at top left, #123d20 0%, #061b0f 45%, #020d07 100%);
-    color: white;
+    background: radial-gradient(circle at top left, #123d20 0%, #061b0f 45%, #020d07 100%);
+    color: #f4fff4;
 }
 
 section[data-testid="stSidebar"] {
-    background:
-    linear-gradient(180deg, #03150a 0%, #0b2d16 55%, #041408 100%);
+    background: linear-gradient(180deg, #03150a 0%, #0b2d16 55%, #041408 100%);
     border-right: 1px solid rgba(120,255,120,0.18);
 }
 
+section[data-testid="stSidebar"] * {
+    color: #f4fff4 !important;
+}
+
 .logo {
-    font-size: 38px;
+    font-size: 34px;
     font-weight: 800;
     color: white;
-    line-height: 1.1;
+    margin-bottom: 0;
 }
 
 .logo span {
@@ -55,8 +56,7 @@ section[data-testid="stSidebar"] {
 .sidebar-small {
     color: #c8e6c9;
     font-size: 14px;
-    margin-top: 10px;
-    margin-bottom: 25px;
+    margin-bottom: 28px;
 }
 
 .main-title {
@@ -67,13 +67,12 @@ section[data-testid="stSidebar"] {
 
 .subtitle {
     color: #c8e6c9;
-    font-size: 17px;
-    margin-bottom: 25px;
+    font-size: 16px;
+    margin-top: 5px;
 }
 
 .card {
-    background:
-    linear-gradient(
+    background: linear-gradient(
         145deg,
         rgba(20,78,36,0.85),
         rgba(3,28,13,0.9)
@@ -85,8 +84,7 @@ section[data-testid="stSidebar"] {
 
     padding: 22px;
 
-    box-shadow:
-    0 10px 30px rgba(0,0,0,0.28);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.28);
 }
 
 .card-title {
@@ -94,40 +92,31 @@ section[data-testid="stSidebar"] {
     font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
+    margin-bottom: 12px;
 }
 
 .card-value {
     color: white;
     font-size: 34px;
     font-weight: 800;
-    margin-top: 10px;
 }
 
 .card-note {
     color: #b7d8b2;
     font-size: 13px;
-    margin-top: 6px;
 }
 
 .section-card {
     background: rgba(3,26,12,0.72);
-
-    border:
-    1px solid rgba(143,209,79,0.28);
-
+    border: 1px solid rgba(143,209,79,0.28);
     border-radius: 20px;
-
     padding: 22px;
-
     margin-top: 18px;
-
-    box-shadow:
-    0 12px 35px rgba(0,0,0,0.30);
 }
 
 .section-title {
     color: white;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 800;
 }
 
@@ -140,7 +129,7 @@ section[data-testid="stSidebar"] {
 .footer {
     text-align: center;
     color: #cfe8c9;
-    padding: 30px;
+    padding: 28px;
     font-size: 16px;
 }
 
@@ -148,11 +137,46 @@ section[data-testid="stSidebar"] {
 """, unsafe_allow_html=True)
 
 # =========================================================
-# DATABASE
+# SIDEBAR
+# =========================================================
+
+with st.sidebar:
+
+    st.markdown("""
+    <div class="logo">
+        🌱 AgriData<br><span>Sénégal</span>
+    </div>
+
+    <div class="sidebar-small">
+        Cultiver l’avenir, ensemble.
+    </div>
+    """, unsafe_allow_html=True)
+
+    menu = st.radio(
+        "",
+        [
+            "🏠 Tableau de bord",
+            "🌾 Champs & parcelles",
+            "📊 Analyses",
+            "🚨 Alertes",
+            "🌦️ Prévisions météo",
+            "🛠️ Recommandations",
+            "📄 Rapports",
+            "⚙️ Paramètres"
+        ]
+    )
+
+    st.markdown("---")
+
+    st.info(
+        "Des données précises pour des décisions intelligentes."
+    )
+
+# =========================================================
+# LOAD DATA
 # =========================================================
 
 @st.cache_data(ttl=5)
-
 def load_data():
 
     try:
@@ -179,178 +203,51 @@ def load_data():
 
 df = load_data()
 
+# =========================================================
+# EMPTY DATA
+# =========================================================
+
 if df.empty:
 
     st.warning(
-        "⏳ En attente des données... "
-        "Le pipeline démarre, patientez quelques instants."
+        "⏳ En attente des données... Le pipeline démarre, patientez quelques instants."
     )
 
-    time.sleep(5)
-
-    st.rerun()
+    st.stop()
 
 # =========================================================
-# DATA CLEANING
+# PREP DATA
 # =========================================================
 
-df = df.rename(columns={
-    "region": "champ",
-    "humidite_sol": "humidite_sol",
-    "temperature_sol": "temperature_sol",
-    "ph_sol": "ph_sol",
-    "alerte": "etat_capteur"
-})
+df["temperature_air"] = df["temperature_sol"] + 2
+df["pluie_mm"] = 0
+df["rendement"] = 1.0
+df["production_t"] = 10000
 
-df["region"] = df["champ"]
-
-if "temperature_air" not in df.columns:
-    df["temperature_air"] = df["temperature_sol"] + 2
-
-if "pluie_mm" not in df.columns:
-    df["pluie_mm"] = 0
-
-if "rendement" not in df.columns:
-    df["rendement"] = 1.2
-
-if "production_t" not in df.columns:
-    df["production_t"] = 12000
-
-# =========================================================
-# BUSINESS RULES
-# =========================================================
-
-df["risque_secheresse"] = (
-    df["humidite_sol"] < 20
+df["etat"] = df["alerte"].apply(
+    lambda x:
+    "CRITIQUE"
+    if x != "OK"
+    else "BON"
 )
 
-df["probleme_ph"] = (
-    (df["ph_sol"] < 5.5)
-    |
-    (df["ph_sol"] > 8)
-)
-
-df["stress_chaleur"] = (
-    df["temperature_air"] > 35
-)
-
-df["score_risque"] = (
-    df["risque_secheresse"].astype(int)
-    +
-    df["probleme_ph"].astype(int)
-    +
-    df["stress_chaleur"].astype(int)
-)
-
-def niveau(score):
-
-    if score >= 2:
-        return "CRITIQUE"
-
-    elif score == 1:
-        return "À SURVEILLER"
-
-    else:
-        return "BON"
-
-df["etat"] = df["score_risque"].apply(niveau)
-
 # =========================================================
-# SIDEBAR
+# PAGE : TABLEAU DE BORD
 # =========================================================
 
-with st.sidebar:
-
-    st.markdown("""
-    <div class="logo">
-    🌱 AgriData<br>
-    <span>Sénégal</span>
-    </div>
-
-    <div class="sidebar-small">
-    Cultiver l’avenir, ensemble.
-    </div>
-    """, unsafe_allow_html=True)
-
-    selected = option_menu(
-
-        menu_title=None,
-
-        options=[
-            "Dashboard",
-            "Champs",
-            "Analyses",
-            "Alertes",
-            "Météo",
-            "Rapports",
-            "Paramètres"
-        ],
-
-        icons=[
-            "house-fill",
-            "tree-fill",
-            "bar-chart-fill",
-            "bell-fill",
-            "cloud-rain-fill",
-            "file-earmark-text-fill",
-            "gear-fill"
-        ],
-
-        default_index=0,
-
-        styles={
-
-            "container": {
-                "padding": "0!important",
-                "background-color": "transparent"
-            },
-
-            "icon": {
-                "color": "#8fd14f",
-                "font-size": "18px"
-            },
-
-            "nav-link": {
-                "font-size": "16px",
-                "text-align": "left",
-                "margin": "6px",
-                "padding": "12px",
-                "border-radius": "12px",
-                "color": "white"
-            },
-
-            "nav-link-selected": {
-                "background":
-                "linear-gradient(90deg,#1f7a3d,#2ea043)",
-                "color": "white",
-                "font-weight": "700",
-            },
-        }
-    )
-
-    st.markdown("---")
-
-    st.info(
-        "Des données précises pour des décisions intelligentes."
-    )
-
-# =========================================================
-# DASHBOARD
-# =========================================================
-
-if selected == "Dashboard":
+if menu == "🏠 Tableau de bord":
 
     st.markdown("""
     <div class="main-title">
-    Bienvenue Patron 🌿
+        Bienvenue Patron 🌿
     </div>
 
     <div class="subtitle">
-    Suivi intelligent des exploitations agricoles du Sénégal.
+        Vue globale des exploitations agricoles.
     </div>
     """, unsafe_allow_html=True)
 
-    # KPI
+    st.write("")
 
     champs_critiques = len(
         df[df["etat"] == "CRITIQUE"]
@@ -363,84 +260,88 @@ if selected == "Dashboard":
     k1, k2, k3, k4 = st.columns(4)
 
     with k1:
+
         st.markdown(f"""
         <div class="card">
             <div class="card-title">
-            Champs suivis
+                Champs suivis
             </div>
 
             <div class="card-value">
-            {len(df)}
+                {len(df)}
             </div>
 
             <div class="card-note">
-            100% actifs
+                100% actifs
             </div>
         </div>
         """, unsafe_allow_html=True)
 
     with k2:
+
         st.markdown(f"""
         <div class="card">
             <div class="card-title">
-            Champs critiques
+                Champs critiques
             </div>
 
             <div class="card-value"
             style="color:#ff5c52;">
-            {champs_critiques}
+                {champs_critiques}
             </div>
 
             <div class="card-note">
-            Intervention urgente
+                Surveillance requise
             </div>
         </div>
         """, unsafe_allow_html=True)
 
     with k3:
+
         st.markdown(f"""
         <div class="card">
             <div class="card-title">
-            Production totale
+                Production totale
             </div>
 
             <div class="card-value">
-            {production_totale:,.0f} t
+                {production_totale:,.0f} t
             </div>
 
             <div class="card-note">
-            Production globale
+                Production globale
             </div>
         </div>
         """, unsafe_allow_html=True)
 
     with k4:
+
         st.markdown(f"""
         <div class="card">
             <div class="card-title">
-            Rendement moyen
+                Rendement moyen
             </div>
 
             <div class="card-value">
-            {rendement_moyen:.2f}
+                {rendement_moyen:.2f}
             </div>
 
             <div class="card-note">
-            Tonnes / hectare
+                Tonnes / hectare
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-    # TABLE
+    # TABLEAU
 
     st.markdown("""
     <div class="section-card">
         <div class="section-title">
-        ÉTAT DES CHAMPS 🌾
+            ÉTAT DES CHAMPS 🌾
         </div>
 
         <div class="section-subtitle">
-        Diagnostic intelligent des exploitations.
+            Surveillance intelligente des exploitations.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -451,140 +352,23 @@ if selected == "Dashboard":
         hide_index=True
     )
 
-    # CHARTS
+    # CHART
 
-    c1, c2 = st.columns(2)
+    st.markdown("""
+    <div class="section-card">
+        <div class="section-title">
+            ALERTES PAR RÉGION 🚨
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with c1:
-
-        etat_counts = (
-            df["etat"]
-            .value_counts()
-            .reset_index()
-        )
-
-        etat_counts.columns = [
-            "etat",
-            "nombre"
-        ]
-
-        chart = alt.Chart(
-            etat_counts
-        ).mark_arc(
-            innerRadius=70
-        ).encode(
-            theta="nombre",
-            color=alt.Color(
-                "etat",
-                scale=alt.Scale(
-                    domain=[
-                        "CRITIQUE",
-                        "À SURVEILLER",
-                        "BON"
-                    ],
-
-                    range=[
-                        "#ef4444",
-                        "#facc15",
-                        "#5ecb4f"
-                    ]
-                )
-            ),
-            tooltip=["etat", "nombre"]
-        ).properties(
-            height=350
-        )
-
-        st.altair_chart(
-            chart,
-            use_container_width=True
-        )
-
-    with c2:
-
-        chart2 = alt.Chart(df).mark_bar(
-            cornerRadiusTopLeft=6,
-            cornerRadiusTopRight=6
-        ).encode(
-
-            x=alt.X(
-                "champ",
-                sort="-y"
-            ),
-
-            y="score_risque",
-
-            color=alt.Color(
-                "etat",
-
-                scale=alt.Scale(
-                    domain=[
-                        "CRITIQUE",
-                        "À SURVEILLER",
-                        "BON"
-                    ],
-
-                    range=[
-                        "#ef4444",
-                        "#facc15",
-                        "#5ecb4f"
-                    ]
-                )
-            ),
-
-            tooltip=[
-                "champ",
-                "etat",
-                "score_risque"
-            ]
-
-        ).properties(
-            height=350
-        )
-
-        st.altair_chart(
-            chart2,
-            use_container_width=True
-        )
-
-# =========================================================
-# CHAMPS
-# =========================================================
-
-elif selected == "Champs":
-
-    st.title("🌾 Gestion des champs")
-
-    champ = st.selectbox(
-        "Choisir un champ",
-        df["champ"].unique()
-    )
-
-    data = df[df["champ"] == champ]
-
-    st.dataframe(
-        data,
-        use_container_width=True
-    )
-
-# =========================================================
-# ANALYSES
-# =========================================================
-
-elif selected == "Analyses":
-
-    st.title("📊 Analyses")
-
-    chart = alt.Chart(df).mark_line(
-        point=True
-    ).encode(
-
-        x="timestamp:T",
-
-        y="temperature_sol:Q",
-
-        color=alt.value("#5ecb4f")
-
+    chart = alt.Chart(df).mark_bar().encode(
+        x="region",
+        y="humidite_sol",
+        color="etat",
+        tooltip=["region", "humidite_sol", "temperature_sol"]
+    ).properties(
+        height=350
     )
 
     st.altair_chart(
@@ -593,33 +377,70 @@ elif selected == "Analyses":
     )
 
 # =========================================================
-# ALERTES
+# PAGE : CHAMPS
 # =========================================================
 
-elif selected == "Alertes":
+elif menu == "🌾 Champs & parcelles":
 
-    st.title("🚨 Alertes critiques")
-
-    alertes = df[
-        df["etat"] != "BON"
-    ]
+    st.title("🌾 Champs & parcelles")
 
     st.dataframe(
-        alertes,
+        df,
         use_container_width=True
     )
 
 # =========================================================
-# MÉTÉO
+# PAGE : ANALYSES
 # =========================================================
 
-elif selected == "Météo":
+elif menu == "📊 Analyses":
+
+    st.title("📊 Analyses")
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        st.subheader("🌡️ Température du sol")
+        st.line_chart(df["temperature_sol"])
+
+    with c2:
+        st.subheader("💧 Humidité du sol")
+        st.bar_chart(df["humidite_sol"])
+
+# =========================================================
+# PAGE : ALERTES
+# =========================================================
+
+elif menu == "🚨 Alertes":
+
+    st.title("🚨 Alertes")
+
+    alertes = df[df["etat"] == "CRITIQUE"]
+
+    if alertes.empty:
+
+        st.success(
+            "Aucune alerte critique détectée."
+        )
+
+    else:
+
+        st.dataframe(
+            alertes,
+            use_container_width=True
+        )
+
+# =========================================================
+# PAGE : MÉTÉO
+# =========================================================
+
+elif menu == "🌦️ Prévisions météo":
 
     st.title("🌦️ Prévisions météo")
 
     c1, c2, c3, c4, c5 = st.columns(5)
 
-    meteo = [
+    weather = [
         ("Lun", "☀️", "35°C"),
         ("Mar", "🌤️", "34°C"),
         ("Mer", "🌦️", "32°C"),
@@ -628,8 +449,8 @@ elif selected == "Météo":
     ]
 
     for col, item in zip(
-        [c1,c2,c3,c4,c5],
-        meteo
+        [c1, c2, c3, c4, c5],
+        weather
     ):
 
         with col:
@@ -639,41 +460,57 @@ elif selected == "Météo":
             style="text-align:center;">
 
                 <div class="card-title">
-                {item[0]}
+                    {item[0]}
                 </div>
 
                 <div style="font-size:38px;">
-                {item[1]}
+                    {item[1]}
                 </div>
 
                 <div class="card-value"
                 style="font-size:24px;">
-                {item[2]}
+                    {item[2]}
                 </div>
 
             </div>
             """, unsafe_allow_html=True)
 
 # =========================================================
-# RAPPORTS
+# PAGE : RECOMMANDATIONS
 # =========================================================
 
-elif selected == "Rapports":
+elif menu == "🛠️ Recommandations":
+
+    st.title("🛠️ Recommandations")
+
+    st.success(
+        "Irrigation recommandée pour les zones sèches."
+    )
+
+    st.info(
+        "Surveiller les températures élevées."
+    )
+
+# =========================================================
+# PAGE : RAPPORTS
+# =========================================================
+
+elif menu == "📄 Rapports":
 
     st.title("📄 Rapports")
 
     st.download_button(
-        label="Télécharger CSV",
+        label="📥 Télécharger CSV",
         data=df.to_csv(index=False),
         file_name="rapport_agri.csv",
         mime="text/csv"
     )
 
 # =========================================================
-# PARAMÈTRES
+# PAGE : PARAMÈTRES
 # =========================================================
 
-elif selected == "Paramètres":
+elif menu == "⚙️ Paramètres":
 
     st.title("⚙️ Paramètres")
 
